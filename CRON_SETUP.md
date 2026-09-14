@@ -42,17 +42,24 @@ Añade un cronjob con estos valores:
 |---|---|
 | `Accept` | `application/vnd.github+json` |
 | `Authorization` | `Bearer TU_TOKEN_DE_GITHUB` |
-| `X-GitHub-Api-Version` | `2022-11-28` |
+| `X-GitHub-Api-Version` | `2026-03-10` |
 | `Content-Type` | `application/json` |
+| `User-Agent` | `age-documentos-monitor` |
 
-Sustituye `TU_TOKEN_DE_GITHUB` por el token. No incluyas el token en este repositorio.
+Sustituye `TU_TOKEN_DE_GITHUB` por el token, sin comillas. En cron-job.org, introduce el nombre y el valor de cada cabecera en campos separados. No incluyas el token en este repositorio.
 
 ## 3. Probar
 
-Ejecuta una prueba desde cron-job.org. GitHub debe responder con HTTP `204 No Content`. Unos segundos después aparecerá una ejecución correcta en:
+Ejecuta una prueba desde cron-job.org. Con la versión actual de la API, GitHub debe responder con HTTP `200 OK` e información de la ejecución. Unos segundos después aparecerá una ejecución correcta en:
 
 https://github.com/sergioopo/age-documentos-monitor/actions/workflows/age-monitor.yml
 
 Las ejecuciones externas aparecerán en GitHub como `workflow_dispatch`. El historial de cron-job.org permite comprobar que el disparo se realiza cada cinco minutos.
+
+Si GitHub sigue devolviendo `403`, abre el detalle de la ejecución en cron-job.org y revisa el cuerpo de la respuesta:
+
+- `Resource not accessible by personal access token`: el token no tiene **Actions: Read and write** o no incluye este repositorio.
+- `User-Agent Required`: falta la cabecera `User-Agent`.
+- `Bad credentials`: el token está incompleto, caducado o contiene espacios/comillas.
 
 El disparador `schedule` nativo se mantiene como respaldo.

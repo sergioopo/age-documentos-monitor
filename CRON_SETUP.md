@@ -62,4 +62,4 @@ Si GitHub sigue devolviendo `403`, abre el detalle de la ejecución en cron-job.
 - `User-Agent Required`: falta la cabecera `User-Agent`.
 - `Bad credentials`: el token está incompleto, caducado o contiene espacios/comillas.
 
-El disparador `schedule` nativo se mantiene como respaldo.
+El workflow utiliza únicamente este disparador externo para evitar ejecuciones duplicadas.

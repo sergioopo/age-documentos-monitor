@@ -14,7 +14,7 @@ Al activar por primera vez este alcance ampliado, el monitor guarda como inventa
 
 ## Ejecución automática
 
-El workflow admite ejecución manual, programación nativa de GitHub y llamadas mediante la API de GitHub. Como el planificador nativo no ha generado eventos en este repositorio, la configuración recomendada utiliza cron-job.org como disparador externo gratuito.
+El workflow admite ejecución manual y llamadas mediante la API de GitHub. cron-job.org actúa como disparador externo gratuito cada cinco minutos.
 
 Consulta [CRON_SETUP.md](CRON_SETUP.md) para configurarlo cada cinco minutos y verificar la respuesta HTTP.
 

@@ -1,0 +1,57 @@
+name: Monitor documentos AGE
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+    inputs:
+      send_test:
+        description: "Enviar archivo de prueba a Telegram"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: age-documentos-monitor
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Comprobar y enviar documentos
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          SEND_TEST: ${{ github.event.inputs.send_test || 'false' }}
+        run: python monitor.py
+
+      - name: Guardar estado
+        run: |
+          if git diff --quiet -- state.json; then
+            echo "El estado no ha cambiado"
+            exit 0
+          fi
+
+          git config user.name "age-documentos-bot"
+          git config user.email "age-documentos-bot@users.noreply.github.com"
+          git add state.json
+          git commit -m "Actualizar estado del monitor"
+          git push

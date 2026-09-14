@@ -1,8 +1,6 @@
 name: Monitor documentos AGE
 
 on:
-  schedule:
-    - cron: "*/5 * * * *"
   workflow_dispatch:
     inputs:
       send_test:

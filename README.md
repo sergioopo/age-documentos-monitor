@@ -12,6 +12,12 @@ Cada cinco minutos:
 
 Al activar por primera vez este alcance ampliado, el monitor guarda como inventario los documentos que ya existen y no los envía. A partir de la siguiente comprobación, sí enviará cualquier documento nuevo detectado.
 
+## Ejecución automática
+
+El workflow admite ejecución manual, programación nativa de GitHub y llamadas mediante la API de GitHub. Como el planificador nativo no ha generado eventos en este repositorio, la configuración recomendada utiliza cron-job.org como disparador externo gratuito.
+
+Consulta [CRON_SETUP.md](CRON_SETUP.md) para configurarlo cada cinco minutos y verificar la respuesta HTTP.
+
 ## Secretos necesarios
 
 En **Settings → Secrets and variables → Actions**, deben existir:

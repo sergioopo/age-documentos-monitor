@@ -17,14 +17,36 @@ SOURCE_URL = (
     "ingreso-libre-convocatoria-2025"
 )
 
-VERCEL_API = (
-    "https://age-documentos-monitor-scaop.vercel.app/api/documents"
+STATE_FILE = Path("state.json")
+MONITOR_SCOPE = "all-documents-v1"
+
+DOCUMENT_EXTENSIONS = {
+    ".pdf",
+    ".doc",
+    ".docx",
+    ".xls",
+    ".xlsx",
+    ".ods",
+    ".odt",
+    ".rtf",
+    ".csv",
+    ".zip",
+    ".7z",
+}
+
+DOWNLOAD_MARKERS = (
+    "/documents/",
+    "/document_library/",
+    "/download/",
+    "/downloads/",
+    "/descarga/",
+    "/descargas/",
+    "/dam/",
+    "/sites/default/files/",
 )
 
-STATE_FILE = Path("state.json")
-
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (compatible; AGE-Documentos/3.0)",
+    "User-Agent": "Mozilla/5.0 (compatible; AGE-Documentos/4.0)",
     "Accept-Language": "es-ES,es;q=0.9",
 }
 
@@ -38,18 +60,37 @@ def normalize(value):
     ).lower()
 
 
-def is_relevant(value):
-    value = normalize(value)
+def is_document_link(link, href):
+    parsed = urlparse(href)
 
-    return bool(
-        re.search(r"listado|relacion", value)
-        and "provisional" in value
-        and re.search(r"aprobad|superad", value)
-        and re.search(
-            r"turno general|acceso general|discapacidad",
-            value,
-        )
-    )
+    if parsed.scheme not in {"http", "https"}:
+        return False
+
+    path = unquote(parsed.path).lower()
+    query = unquote(parsed.query).lower()
+    extension = Path(path).suffix
+
+    if extension in DOCUMENT_EXTENSIONS:
+        return True
+
+    if any(
+        f"{candidate}" in query
+        for candidate in DOCUMENT_EXTENSIONS
+    ):
+        return True
+
+    if link.has_attr("download"):
+        return True
+
+    link_type = link.get("type", "").lower()
+
+    if (
+        link_type.startswith("application/")
+        and "html" not in link_type
+    ):
+        return True
+
+    return any(marker in path for marker in DOWNLOAD_MARKERS)
 
 
 def get_category(value):
@@ -65,7 +106,10 @@ def get_category(value):
     if disability:
         return "Cupo de discapacidad"
 
-    return "Turno general"
+    if general:
+        return "Turno general"
+
+    return "Documento publicado en la página del INAP"
 
 
 def document_id(url):
@@ -83,38 +127,40 @@ def scrape_inap():
     response.raise_for_status()
 
     soup = BeautifulSoup(response.text, "html.parser")
+    content = soup.find("main") or soup
     documents = {}
 
-    for link in soup.find_all("a", href=True):
-        title = link.get_text(" ", strip=True)
+    for link in content.find_all("a", href=True):
         href = urljoin(
             SOURCE_URL,
             link["href"],
         ).split("#")[0]
 
-        container = link.find_parent(
-            ["li", "p", "article", "div"]
+        if not is_document_link(link, href):
+            continue
+
+        title = (
+            link.get_text(" ", strip=True)
+            or link.get("aria-label", "").strip()
+            or link.get("title", "").strip()
+            or unquote(Path(urlparse(href).path).name)
+            or "Documento del INAP"
         )
 
+        container = link.find_parent(
+            ["li", "p", "tr", "article", "section"]
+        )
         context = (
             container.get_text(" ", strip=True)
             if container
             else title
         )
-
         combined = f"{title} {context} {href}"
-
-        if not is_relevant(combined):
-            continue
-
         identifier = document_id(href)
 
         documents[identifier] = {
             "id": identifier,
-            "title": (
-                title
-                or "Listado provisional de aprobados"
-            ),
+            "title": title,
             "url": href,
             "category": get_category(combined),
         }
@@ -122,33 +168,10 @@ def scrape_inap():
     return list(documents.values())
 
 
-def fetch_from_vercel():
-    response = requests.get(
-        VERCEL_API,
-        headers=HEADERS,
-        timeout=30,
-    )
-    response.raise_for_status()
-
-    payload = response.json()
-    return payload.get("documents", [])
-
-
 def fetch_documents():
-    try:
-        documents = scrape_inap()
-        print("Consulta directa al INAP completada.")
-        return documents
-    except Exception as error:
-        print(
-            "Acceso directo al INAP fallido: "
-            f"{error}"
-        )
-        print(
-            "Utilizando la API de Vercel "
-            "como respaldo."
-        )
-        return fetch_from_vercel()
+    documents = scrape_inap()
+    print("Consulta directa al INAP completada.")
+    return documents
 
 
 def load_state():
@@ -220,13 +243,18 @@ def telegram_request(files, caption):
         timeout=120,
     )
 
-    response.raise_for_status()
+    if not response.ok:
+        raise RuntimeError(
+            f"Telegram HTTP {response.status_code}: "
+            + response.text[:500]
+        )
+
     payload = response.json()
 
     if not payload.get("ok"):
         raise RuntimeError(
             "Telegram rechazó el documento: "
-            + response.text[:300]
+            + response.text[:500]
         )
 
 
@@ -259,6 +287,17 @@ def send_document(document):
     )
     response.raise_for_status()
 
+    content_type = response.headers.get(
+        "Content-Type",
+        "",
+    ).lower()
+
+    if "text/html" in content_type:
+        raise RuntimeError(
+            "El enlace detectado no devolvió un archivo: "
+            + document["url"]
+        )
+
     filename = safe_filename(
         document,
         response,
@@ -276,10 +315,8 @@ def send_document(document):
             "document": (
                 filename,
                 response.content,
-                response.headers.get(
-                    "Content-Type",
-                    "application/octet-stream",
-                ),
+                content_type
+                or "application/octet-stream",
             )
         },
         caption=caption,
@@ -288,6 +325,21 @@ def send_document(document):
     print(
         f"Enviado correctamente: {filename}"
     )
+
+
+def update_heartbeat(state):
+    current_week = datetime.now(
+        timezone.utc
+    ).strftime("%G-W%V")
+
+    if (
+        state.get("heartbeat_week")
+        != current_week
+    ):
+        state["heartbeat_week"] = current_week
+        return True
+
+    return False
 
 
 def main():
@@ -310,9 +362,24 @@ def main():
     documents = fetch_documents()
 
     print(
-        "Documentos relevantes encontrados: "
+        "Documentos descargables encontrados: "
         f"{len(documents)}"
     )
+
+    if state.get("scope") != MONITOR_SCOPE:
+        processed.update(
+            document["id"]
+            for document in documents
+        )
+        state["processed"] = sorted(processed)
+        state["scope"] = MONITOR_SCOPE
+        update_heartbeat(state)
+        save_state(state)
+        print(
+            "Inventario inicial guardado; "
+            "no se enviarán documentos antiguos."
+        )
+        return
 
     for document in documents:
         if document["id"] in processed:
@@ -326,17 +393,7 @@ def main():
         )
         save_state(state)
 
-    current_week = datetime.now(
-        timezone.utc
-    ).strftime("%G-W%V")
-
-    if (
-        state.get("heartbeat_week")
-        != current_week
-    ):
-        state["heartbeat_week"] = (
-            current_week
-        )
+    if update_heartbeat(state):
         save_state(state)
 
 

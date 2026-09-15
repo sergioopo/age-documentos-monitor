@@ -3,6 +3,7 @@ import json
 import os
 import re
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import unquote, urljoin, urlparse
@@ -49,6 +50,37 @@ HEADERS = {
     "User-Agent": "Mozilla/5.0 (compatible; AGE-Documentos/4.0)",
     "Accept-Language": "es-ES,es;q=0.9",
 }
+
+RETRY_DELAYS = (5, 15, 30)
+
+
+def get_with_retries(url, timeout, description):
+    total_attempts = len(RETRY_DELAYS) + 1
+
+    for attempt in range(1, total_attempts + 1):
+        try:
+            response = requests.get(
+                url,
+                headers=HEADERS,
+                timeout=timeout,
+            )
+            response.raise_for_status()
+            return response
+        except requests.RequestException as error:
+            if attempt == total_attempts:
+                print(
+                    f"{description}: fallo definitivo tras "
+                    f"{total_attempts} intentos: {error}"
+                )
+                raise
+
+            delay = RETRY_DELAYS[attempt - 1]
+            print(
+                f"{description}: intento {attempt}/"
+                f"{total_attempts} fallido ({error}). "
+                f"Nuevo intento en {delay} segundos."
+            )
+            time.sleep(delay)
 
 
 def normalize(value):
@@ -119,12 +151,11 @@ def document_id(url):
 
 
 def scrape_inap():
-    response = requests.get(
+    response = get_with_retries(
         SOURCE_URL,
-        headers=HEADERS,
         timeout=30,
+        description="Consulta de la página del INAP",
     )
-    response.raise_for_status()
 
     soup = BeautifulSoup(response.text, "html.parser")
     content = soup.find("main") or soup
@@ -280,12 +311,14 @@ def send_test():
 
 
 def send_document(document):
-    response = requests.get(
+    response = get_with_retries(
         document["url"],
-        headers=HEADERS,
         timeout=60,
+        description=(
+            "Descarga del documento "
+            f"{document['title']}"
+        ),
     )
-    response.raise_for_status()
 
     content_type = response.headers.get(
         "Content-Type",

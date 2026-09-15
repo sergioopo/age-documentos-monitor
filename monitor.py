@@ -10,6 +10,7 @@ from urllib.parse import unquote, urljoin, urlparse
 
 import requests
 from bs4 import BeautifulSoup
+from ranking import generate_published_ranking
 
 SOURCE_URL = (
     "https://sede.inap.gob.es/es/procedimientos-y-servicios/seleccion/"
@@ -150,6 +151,42 @@ def document_id(url):
     ).hexdigest()[:20]
 
 
+def provisional_document_type(document):
+    value = normalize(
+        f"{document['title']} "
+        f"{document.get('context', '')} "
+        f"{document['url']}"
+    )
+    is_result_list = any(
+        marker in value
+        for marker in (
+            "relacion nominativa",
+            "aspirantes que superan",
+            "superan el ejercicio",
+        )
+    )
+
+    if (
+        "cupo base especifica 5" in value
+        and is_result_list
+    ):
+        return "disability"
+
+    if (
+        ("acceso general" in value or "turno general" in value)
+        and is_result_list
+    ):
+        return "general"
+
+    if (
+        "nota informativa" in value
+        and "puntuaciones minimas" in value
+    ):
+        return "minimum_scores"
+
+    return None
+
+
 def scrape_inap():
     response = get_with_retries(
         SOURCE_URL,
@@ -194,6 +231,7 @@ def scrape_inap():
             "title": title,
             "url": href,
             "category": get_category(combined),
+            "context": context,
         }
 
     return list(documents.values())
@@ -210,6 +248,8 @@ def load_state():
         return {
             "processed": [],
             "heartbeat_week": "",
+            "provisional_documents": {},
+            "provisional_last_publication": "",
         }
 
     return json.loads(
@@ -360,6 +400,73 @@ def send_document(document):
     )
 
 
+def remember_provisional_document(state, document):
+    document_type = provisional_document_type(document)
+
+    if not document_type:
+        return False
+
+    provisional = state.setdefault(
+        "provisional_documents",
+        {},
+    )
+    provisional[document_type] = {
+        "id": document["id"],
+        "title": document["title"],
+        "url": document["url"],
+    }
+    print(
+        "Documento relevante para ranking detectado: "
+        f"{document_type}"
+    )
+    return True
+
+
+def update_published_ranking(state):
+    provisional = state.get(
+        "provisional_documents",
+        {},
+    )
+    required = (
+        "general",
+        "disability",
+        "minimum_scores",
+    )
+
+    if not all(item in provisional for item in required):
+        missing = [
+            item for item in required
+            if item not in provisional
+        ]
+        print(
+            "Aún no se puede actualizar el ranking. "
+            "Falta: " + ", ".join(missing)
+        )
+        return
+
+    fingerprint = hashlib.sha256(
+        "|".join(
+            provisional[item]["id"]
+            for item in required
+        ).encode("utf-8")
+    ).hexdigest()
+
+    if fingerprint == state.get("provisional_last_publication"):
+        return
+
+    manifest = generate_published_ranking(
+        provisional,
+        edition="2025",
+    )
+    state["provisional_last_publication"] = fingerprint
+    print(
+        "Ranking publicado: "
+        f"{manifest['counts']['total']} aspirantes; "
+        f"cortes {manifest['cuts']['general']} y "
+        f"{manifest['cuts']['disability']}."
+    )
+
+
 def update_heartbeat(state):
     current_week = datetime.now(
         timezone.utc
@@ -419,12 +526,19 @@ def main():
             continue
 
         send_document(document)
+        remember_provisional_document(
+            state,
+            document,
+        )
         processed.add(document["id"])
 
         state["processed"] = sorted(
             processed
         )
         save_state(state)
+
+    update_published_ranking(state)
+    save_state(state)
 
     if update_heartbeat(state):
         save_state(state)

@@ -9,6 +9,15 @@ Cada cinco minutos:
 3. Descarga cada archivo nuevo.
 4. Lo envía como archivo adjunto a Telegram.
 5. Guarda su identificador en `state.json` para no repetirlo.
+6. Cuando reconoce los dos listados de aprobados provisionales y la nota
+   informativa de puntuaciones mínimas, descarga y valida los tres PDF,
+   genera el ranking combinado y publica sus datos en `published/`.
+
+La web de AGE consulta esos datos publicados directamente. El envío de todos
+los documentos a Telegram se mantiene sin cambios: la generación del ranking
+es una acción adicional del mismo monitor y del mismo disparo de cron-job.org.
+Los cortes que publica corresponden a la **puntuación directa mínima** de la
+primera y segunda parte, sin sumar ni transformar sus valores.
 
 Al activar por primera vez este alcance ampliado, el monitor guarda como inventario los documentos que ya existen y no los envía. A partir de la siguiente comprobación, sí enviará cualquier documento nuevo detectado.
 

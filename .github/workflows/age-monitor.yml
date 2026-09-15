@@ -41,15 +41,15 @@ jobs:
           SEND_TEST: ${{ github.event.inputs.send_test || 'false' }}
         run: python monitor.py
 
-      - name: Guardar estado
+      - name: Guardar estado y ranking publicado
         run: |
-          if git diff --quiet -- state.json; then
-            echo "El estado no ha cambiado"
+          if git diff --quiet -- state.json published; then
+            echo "El estado y el ranking no han cambiado"
             exit 0
           fi
 
           git config user.name "age-documentos-bot"
           git config user.email "age-documentos-bot@users.noreply.github.com"
-          git add state.json
-          git commit -m "Actualizar estado del monitor"
+          git add state.json published
+          git commit -m "Actualizar estado y ranking publicado"
           git push

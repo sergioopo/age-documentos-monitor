@@ -51,7 +51,7 @@ HEADERS = {
     "Accept-Language": "es-ES,es;q=0.9",
 }
 
-RETRY_DELAYS = (5, 15, 30)
+RETRY_DELAYS = (10,)
 
 
 def get_with_retries(url, timeout, description):

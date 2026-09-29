@@ -2,6 +2,7 @@
   "heartbeat_week": "2026-W40",
   "processed": [
     "01a1c183627651e7c7e0",
+    "057b0292598b7d7e0e6b",
     "076f182dde65e41b9fec",
     "07784a7772ad5d60759c",
     "14e19c4c1061e404d245",
@@ -32,6 +33,7 @@
     "74bc382c4b6c1c0a84b4",
     "798da643c1b7b4b1be41",
     "7a36087ffbd3f8c9ec1b",
+    "7c914ceed436999472e0",
     "8795792c643905a17a6d",
     "897bdf4381c64487362f",
     "89f4780dd2c56de3d6ae",
@@ -39,17 +41,21 @@
     "916fbff05adf5d529d0f",
     "9387a0af1a1081f64132",
     "9a8eff42ba0377606a48",
+    "9d9859c53805577cd223",
     "a5657a4b7aa773858f9c",
     "b0341c037316a05c642e",
     "b6530de96ffdfe442184",
     "b886a2f1fa4e29f9c459",
     "b893cb81612dcec51a13",
     "b909a477c9760a953c94",
+    "b93f3db937f8823ff05b",
+    "b9c7ce531e2acc523931",
     "bc7811dab8eb243f504e",
     "bcf5f8ba57118457726e",
     "c2712675a4269e60e35f",
     "c2cb8dadb4e5fc845e28",
     "c4c02c9b175b95f12d53",
+    "c77d2270fd532fd42cb2",
     "c7f19ac75ea53cfa627a",
     "c999da3319c8301e4c45",
     "cba15646a1d093aba319",
@@ -58,6 +64,7 @@
     "e0a63df06d8dafa62117",
     "e222415a00add2d73698",
     "e4b8c9347896b0ea59b1",
+    "e6d0df6f375591f5137f",
     "e6ead2a033740656dd48",
     "ec5477703f5beeada083",
     "ecbaf9e8a99c56f635b7",
@@ -68,7 +75,15 @@
     "f695fcacc6c7a61c3129",
     "f731a5620e95ab756c3d",
     "fc09da411da7ca1eaebc",
-    "fe260c49d8b16a97cead"
+    "fe260c49d8b16a97cead",
+    "ff6c45fbe39eb05be96f"
   ],
+  "provisional_documents": {
+    "minimum_scores": {
+      "id": "9d9859c53805577cd223",
+      "title": "Nota informativa puntuaciones mínimas",
+      "url": "https://sede.inap.gob.es/sites/sede/files/public/2026-09/PUNTUACIONES%20MINIMAS%20EJER%20UNICO%20ADVO%20L.pdf"
+    }
+  },
   "scope": "all-documents-v1"
 }
